@@ -1,0 +1,134 @@
+Daily Cases = 
+    SUM('owid-covid-data'[new_cases])
+
+Max Cases in one day = 
+    MAXX(VALUES('Date'[Date]), 
+        [Daily Cases])
+
+New Cases Daily Average = 
+    AVERAGEX(VALUES('Date'[Date]), 
+            [Daily Cases])
+
+People vaccinated = 
+    MAX('owid-covid-data'[people_vaccinated])
+
+Total Cases = 
+    MAX('owid-covid-data'[total_cases])
+
+Total Deaths = 
+    MAX('owid-covid-data'[total_deaths])
+
+Vaccinated % = 
+    DIVIDE([People vaccinated], [Total Population], 0 )
+
+Death % = 
+    DIVIDE([Total Deaths], [Total Population], 0)
+
+Sample code used in other projects:
+
+
+Campus Average Occupancy % =
+        IF(
+           LOOKUPVALUE('Mapping'[Region], 'Mapping'[Ecosystem], SELECTEDVALUE('Mapping'[Ecosystem])) = "Downtown" ,
+           [Downtown Avg Occupancy %] ,
+           [GTA Avg Occupancy %] )
+ 
+
+Downtown Avg Occupancy % =   
+    CALCULATE(
+        DIVIDE(
+            (CALCULATE (
+                AVERAGEX(VALUES('Data'[Date].[Date]), [Total Unique Visits]) ,
+                    'Data'[Region] = "Downtown")) ,
+
+            (CALCULATE
+                (SUM(Mapping[Citizens]),
+                    'Mapping'[Region] = "Downtown")) ,
+            0),      
+
+        ALL('Mapping'[Ecosystem]))
+
+ 
+
+
+ 
+
+Var Icon Total Unique Visits =
+    var positiveicon = UNICHAR(9650)
+    var negativeicon = UNICHAR(9660)
+
+        var result = if([Total Unique Visits] > [Previous Month Unique Visits],
+            positiveicon,
+            negativeicon)
+
+Return result
+
+staffcount =
+COUNTX(
+    FILTER(
+        Staff,
+        Staff[Floor] = Floor[Floor] &&
+        NOT (Staff[Role] IN {"inbuilt", "outbuilt"})
+    ),
+    Staff[Role]
+)
+
+
+SpaceDifference = 
+VAR CurrentBuilding = SELECTEDVALUE(FloorMap[Building])
+VAR CurrentFloor = SELECTEDVALUE(FloorMap[Floor])
+VAR StaffFromFloorMap = IF(ISBLANK(CurrentFloor), SUM(FloorMap[Staff]), SELECTEDVALUE(FloorMap[Staff]))
+VAR DesksFromFloorMap = IF(ISBLANK(CurrentFloor), SUM(FloorMap[Desks]), SELECTEDVALUE(FloorMap[Desks]))
+VAR IsFlex = SELECTEDVALUE(FloorMap[Tag]) = "flex"
+
+VAR SpaceDifferenceFromFlexMap = 
+    IF(
+        IsFlex,
+        LOOKUPVALUE(FlexMap[SpaceDifference], FlexMap[Floor], CurrentFloor),
+        BLANK()
+    )
+
+RETURN
+IF(
+    ISBLANK(DesksFromFloorMap) || DesksFromFloorMap = 0,
+    0,
+    IF(
+        ISBLANK(CurrentFloor) && NOT IsFlex,
+        DesksFromFloorMap - StaffFromFloorMap,
+        IF(
+            IsFlex,
+            SpaceDifferenceFromFlexMap,
+            DesksFromFloorMap - StaffFromFloorMap
+        )
+    )
+)
+
+
+RoleRatio = 
+VAR CurrentBuilding = SELECTEDVALUE(FloorMap[Building])
+VAR CurrentFloor = SELECTEDVALUE(FloorMap[Floor])
+VAR SpecificRole = "Hybrid"  // You can change this to other roles as needed
+VAR ExcludedRoles = {"inbuilt", "outbuilt"}
+
+VAR FloorFilter = IF(ISBLANK(CurrentFloor), TRUE(), Staff[Floor] = CurrentFloor)
+
+VAR CountOfSpecificRole = CALCULATE(
+    COUNTROWS(Staff),
+    Staff[Building] = CurrentBuilding,
+    FloorFilter,
+    Staff[Staff Role] = SpecificRole
+)
+
+VAR TotalCountExcludingExcludedRoles = CALCULATE(
+    COUNTROWS(Staff),
+    Staff[Building] = CurrentBuilding,
+    FloorFilter,
+    NOT Staff[Staff Role] IN ExcludedRoles
+)
+
+RETURN
+IF(TotalCountExcludingExcludedRoles <> 0, 
+    DIVIDE(CountOfSpecificRole, TotalCountExcludingExcludedRoles),
+    BLANK()
+)
+
